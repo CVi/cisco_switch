@@ -1,7 +1,7 @@
-__author__ = 'CVi'
 from .ro import *
 from .rw import *
 
+__author__ = 'CVi'
 __all__ = ['CiscoROSwitch', 'CiscoWOSwitch', 'CiscoSwitch']
 
 
@@ -58,7 +58,7 @@ class CiscoROSwitch(object):
         :param portindex: Index of the interface/port
         :type portindex: int
         :return: List of all vlanids on a port (if in trunk mode)
-        :rtype: list
+        :rtype: list[int]
         """
         #TODO: Add support for passing a port object.
         return vlans_on_port(self.community, self.server, portindex=portindex)
@@ -112,6 +112,7 @@ class CiscoROSwitch(object):
         """
         get_access_vlan(self.community, self.server, portindex)
 
+
 class CiscoWOSwitch(object):
     """
     Cisco write/create-only switch class.
@@ -153,6 +154,32 @@ class CiscoWOSwitch(object):
         #TODO: Add support for passing a port object.
         #TODO: Add support for passing a vlan object.
         deactivate_vlan_on_port(self.community, self.server, portindex=portindex, vlanid=vlanid)
+
+    def activate_vlans_on_port(self, portindex, vlans):
+        """
+        Activates a list of vlans on the port
+
+        :param portindex: Index of the interface/port
+        :type portindex: int
+        :param vlans: List of VlanID, usually the 802.1q tag number.
+        :type vlans: list[int]
+        """
+        #TODO: Add support for passing a port object.
+        #TODO: Add support for passing a vlan object.
+        activate_vlans_on_port(self.community, self.server, portindex=portindex, vlans=vlans)
+
+    def deactivate_vlans_on_port(self, portindex, vlans):
+        """
+        Deactivates a list of vlans on the port
+
+        :param portindex: Index of the interface/port
+        :type portindex: int
+        :param vlans: List of VlanID, usually the 802.1q tag number.
+        :type vlans: list[int]
+        """
+        #TODO: Add support for passing a port object.
+        #TODO: Add support for passing a vlan object.
+        deactivate_vlans_on_port(self.community, self.server, portindex=portindex, vlans=vlans)
 
     def wr_mem(self):
         """
@@ -286,17 +313,21 @@ class CiscoSwitch(CiscoROSwitch, CiscoWOSwitch):
         """
         Returns all ports as a map with CiscoPort objects.
 
-        :rtype : map
+        :rtype : map[CiscoPort]
         """
-        return map(lambda item: CiscoPort(self, item[0], item[1]), port_names().items())
+        return map(lambda item: CiscoPort(self, item[1], item[0]), self.port_names().items())
 
     def get_vlans(self, vlandomain=1):
         """
         Returns all Vlans as a map with CiscoVlan objects.
 
-        :rtype : map
+        :rtype : map[CiscoVlan]
         """
-        return map(lambda item: CiscoVlan(self, item[0], vlandomain), self.get_vlans(vlandomain=vlandomain).items())
+        return map(lambda item: CiscoVlan(self, item[0], vlandomain), self.get_vlan_names(vlandomain=vlandomain).items())
+
+    def __str__(self):
+        return "<CiscoSwitch: {0}>".format(self.server)
+
 
 class CiscoPort(object):
     """
@@ -340,7 +371,7 @@ class CiscoPort(object):
         """Get all the vlans on the trunk
 
         :return: List of all vlanids on a port (if in trunk mode)
-        :rtype: list
+        :rtype: list[int]
         """
         return self.switch.vlans_on_port(self.portindex)
 
@@ -372,6 +403,26 @@ class CiscoPort(object):
         """
         #TODO: Add support for passing a vlan object.
         self.switch.deactivate_vlan_on_port(self.portindex, vlanid)
+
+    def activate_vlans(self, vlans):
+        """
+        Activates a list of vlans on the port
+
+        :param vlans: List of VlanID, usually the 802.1q tag number.
+        :type vlans: list[int]
+        """
+        #TODO: Add support for passing a vlan object.
+        self.switch.activate_vlans_on_port(self.portindex, vlans)
+
+    def deactivate_vlans(self, vlans):
+        """
+        Deactivates a list of vlans on the port
+
+        :param vlans: List of VlanID, usually the 802.1q tag number.
+        :type vlans: list[int]
+        """
+        #TODO: Add support for passing a vlan object.
+        self.switch.deactivate_vlans_on_port(self.portindex, vlans)
 
     def set_alias(self, value):
         """
@@ -429,6 +480,7 @@ class CiscoPort(object):
         #TODO: Add support for passing a vlan object.
         self.switch.set_access_vlan(self.portindex, vlanid)
 
+
 class CiscoVlan(object):
     """
     Cisco VLAN class
@@ -474,7 +526,7 @@ class CiscoVlan(object):
         :return: Name of the vlan
         :rtype :  basestring
         """
-        self.switch.get_vlan_name(self.vlanid, vlandomain=self.vlandomain)
+        return self.switch.get_vlan_name(self.id, vlandomain=self.vlandomain)
 
     def rename(self, name):
         """
@@ -484,4 +536,4 @@ class CiscoVlan(object):
         :param name: New name of vlan
         :type name: basestring
         """
-        self.switch.get_vlan_name(self.vlanid, name, vlandomain=self.vlandomain)
+        self.switch.rename_vlan(self.id, name, vlandomain=self.vlandomain)

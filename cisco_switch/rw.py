@@ -8,19 +8,19 @@ Be aware, decorators are signature altering.
 Only community and server are guaranteed to be positional.
 """
 import time
-
-__author__ = 'CVi'
-
 import random
 from pysnmp.proto.rfc1905 import NoSuchInstance
 from pysnmp.proto.rfc1902 import OctetString
 from .snmp_funcs import set_vals, snmp_get, snmp_set, snmp_next
 
+__author__ = 'CVi'
+
 __all__ = ['activate_vlan_on_port', 'deactivate_vlan_on_port', 'wr_mem', 'set_port_alias', 'activate_port',
            'deactivate_port', 'make_port_trunk', 'make_port_access', 'delete_vlan', 'create_vlan', 'rename_vlan',
-           'set_access_vlan', '_set_port_trunk']
+           'set_access_vlan', '_set_port_trunk', 'deactivate_vlans_on_port', 'activate_vlans_on_port']
 
-def _meta_vlan(community, server, portindex, vlanid, status):
+
+def _meta_vlan(community, server, portindex, vlanid, status, vlan_list=[]):
     """
     Meta function for updating vlan on a port
 
@@ -29,20 +29,28 @@ def _meta_vlan(community, server, portindex, vlanid, status):
     :param portindex: Index of the interface/port
     :param vlanid: VlanID, usually the 802.1q tag number.
     :param status: New vlan status as a 0/1 string.
+    :param vlan_list: if vlanid is 0, you can bulk set using this.
     """
-    if vlanid <= 0 or vlanid >= 4096:
+    multi = False
+    if vlanid == 0:
+        vlanid = min(vlan_list) if len(vlan_list) > 0 else 0
+        multi = True
+        if len(vlan_list) == 0:
+            return
+    if vlanid < 0 or vlanid >= 4096:
         raise ValueError("Invalid VLAN")
     elif vlanid <= 1023:
         oid = "1.3.6.1.4.1.9.9.46.1.6.1.1.4.%i" % portindex
+        diff = 0
     elif vlanid <= 2047:
         oid = "1.3.6.1.4.1.9.9.46.1.6.1.1.17.%i" % portindex
-        vlanid -= 1024
+        diff = -1024
     elif vlanid <= 3071:
         oid = "1.3.6.1.4.1.9.9.46.1.6.1.1.18.%i" % portindex
-        vlanid -= 2048
+        diff = -2048
     else:
         oid = "1.3.6.1.4.1.9.9.46.1.6.1.1.19.%i" % portindex
-        vlanid -= 3072
+        diff = -3072
 
     ((a, serial), (b, vlans)) = snmp_get(community, server, "1.3.6.1.4.1.9.9.46.1.6.2.0", oid)
     val_str = vlans.prettyPrint()
@@ -50,7 +58,12 @@ def _meta_vlan(community, server, portindex, vlanid, status):
         val_str = "0000"
     l = val_str[2:].ljust(256, '0')
     b = list(bin(int(l, 16))[2:].zfill(len(l)*4))
-    b[vlanid] = status
+    if not multi:
+        b[vlanid+diff] = status
+    else:
+        for v in vlan_list:
+            if 0 <= v+diff <= 1023:
+                b[v+diff] = status
     b = "".join(b)
     os = OctetString(binValue=b)
 
@@ -79,6 +92,36 @@ def deactivate_vlan_on_port(community, server, portindex, vlanid):
     :param vlanid: VlanID, usually the 802.1q tag number.
     """
     _meta_vlan(community, server, portindex, vlanid, "0")
+
+
+def activate_vlans_on_port(community, server, portindex, vlans):
+    """
+    Activates a list of vlans on the port
+
+    :param community: SNMP Community
+    :param server: Host (switch)
+    :param portindex: Index of the interface/port
+    :param vlans: List of VlanID, usually the 802.1q tag number.
+    """
+    _meta_vlan(community, server, portindex, 0, "1", [v for v in vlans if 0 < v <= 1023])
+    _meta_vlan(community, server, portindex, 0, "1", [v for v in vlans if 1023 < v <= 2047])
+    _meta_vlan(community, server, portindex, 0, "1", [v for v in vlans if 2047 < v <= 3071])
+    _meta_vlan(community, server, portindex, 0, "1", [v for v in vlans if 3071 < v <= 4095])
+
+
+def deactivate_vlans_on_port(community, server, portindex, vlans):
+    """
+    Deactivates a list of vlans on the port
+
+    :param community: SNMP Community
+    :param server: Host (switch)
+    :param portindex: Index of the interface/port
+    :param vlans: List of VlanID, usually the 802.1q tag number.
+    """
+    _meta_vlan(community, server, portindex, 0, "0", [v for v in vlans if 0 < v <= 1023])
+    _meta_vlan(community, server, portindex, 0, "0", [v for v in vlans if 1023 < v <= 2047])
+    _meta_vlan(community, server, portindex, 0, "0", [v for v in vlans if 2047 < v <= 3071])
+    _meta_vlan(community, server, portindex, 0, "0", [v for v in vlans if 3071 < v <= 4095])
 
 
 def wr_mem(community, server):

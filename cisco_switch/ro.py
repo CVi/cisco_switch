@@ -72,6 +72,7 @@ def vlans_on_port(community, server, binds, portindex):
     :param server: Host (switch)
     :param portindex: Index of the interface/port
     :return: List of all vlanids on a port (if in trunk mode)
+    :trype list[int]
     """
     vlans = []
     pf = "1.3.6.1.4.1.9.9.46.1.6.1.1"
