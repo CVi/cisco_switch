@@ -8,13 +8,15 @@ import random
 from pysnmp.proto.rfc1902 import OctetString
 import time
 from pysnmp.proto.rfc1905 import NoSuchInstance
+from cisco_switch import SwitchBase
+from cisco_switch.base import get_port
 from cisco_switch.snmp_funcs import snmp_next, snmp_get, snmp_set, set_vals
 
 __author__ = 'CVi'
 __all__ = ['CiscoWOSwitch']
 
 
-class CiscoWOSwitch(object):
+class CiscoWOSwitch(SwitchBase):
     """
     Cisco write/create-only switch class.
 
@@ -30,7 +32,7 @@ class CiscoWOSwitch(object):
         self.community = community
         self.server = server
 
-    def _meta_vlan(self, portindex, status, vlanid=0, vlan_list=[]):
+    def _meta_vlan(self, portindex, status, vlanid=0, vlan_list=()):
         """
         Meta function for updating vlan on a port
 
@@ -77,7 +79,7 @@ class CiscoWOSwitch(object):
 
         snmp_set(self.community, self.server, ("1.3.6.1.4.1.9.9.46.1.6.2.0", serial), (oid, os))
 
-    def activate_vlan_on_port(self, portindex, vlanid):
+    def activate_vlan_on_port(self, portindex=0, vlanid=0, vlan=None, port=None):
         """
         Activates a vlan on the port
 
@@ -85,12 +87,17 @@ class CiscoWOSwitch(object):
         :type portindex: int
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
+        :type vlan: cisco_switch.CiscoVlan
+        :type port: cisco_switch.CiscoPort
         """
-        #TODO: Add support for passing a port object.
-        #TODO: Add support for passing a vlan object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+        if vlanid == 0 and vlan is not None:
+            vlanid, vlanname = self._get_vlan(vlan)
+
         self._meta_vlan(portindex=portindex, vlanid=vlanid, status="1")
 
-    def deactivate_vlan_on_port(self, portindex, vlanid):
+    def deactivate_vlan_on_port(self, portindex=0, vlanid=0, vlan=None, port=None):
         """
         Deactivates a vlan on the port
 
@@ -99,11 +106,14 @@ class CiscoWOSwitch(object):
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        #TODO: Add support for passing a port object.
-        #TODO: Add support for passing a vlan object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+        if vlanid == 0 and vlan is not None:
+            vlanid, vlanname = self._get_vlan(vlan)
+
         self._meta_vlan(portindex=portindex, vlanid=vlanid, status="0")
 
-    def activate_vlans_on_port(self, portindex, vlans):
+    def activate_vlans_on_port(self, portindex=0, vlans=(), port=None):
         """
         Activates a list of vlans on the port
 
@@ -112,14 +122,16 @@ class CiscoWOSwitch(object):
         :param vlans: List of VlanID, usually the 802.1q tag number.
         :type vlans: list[int]
         """
-        #TODO: Add support for passing a port object.
-        #TODO: Add support for passing a vlan object.
-        self._meta_vlan(self.community, self.server, portindex, "1", vlan_list=[v for v in vlans if 0 < v <= 1023])
-        self._meta_vlan(self.community, self.server, portindex, "1", vlan_list=[v for v in vlans if 1023 < v <= 2047])
-        self._meta_vlan(self.community, self.server, portindex, "1", vlan_list=[v for v in vlans if 2047 < v <= 3071])
-        self._meta_vlan(self.community, self.server, portindex, "1", vlan_list=[v for v in vlans if 3071 < v <= 4095])
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+        vlans = self._extract_vlan_ids(vlans)
 
-    def deactivate_vlans_on_port(self, portindex, vlans):
+        self._meta_vlan(portindex, "1", vlan_list=[v for v in vlans if 0 < v <= 1023])
+        self._meta_vlan(portindex, "1", vlan_list=[v for v in vlans if 1023 < v <= 2047])
+        self._meta_vlan(portindex, "1", vlan_list=[v for v in vlans if 2047 < v <= 3071])
+        self._meta_vlan(portindex, "1", vlan_list=[v for v in vlans if 3071 < v <= 4095])
+
+    def deactivate_vlans_on_port(self, portindex=0, vlans=(), port=None):
         """
         Deactivates a list of vlans on the port
 
@@ -128,12 +140,14 @@ class CiscoWOSwitch(object):
         :param vlans: List of VlanID, usually the 802.1q tag number.
         :type vlans: list[int]
         """
-        #TODO: Add support for passing a port object.
-        #TODO: Add support for passing a vlan object.
-        self._meta_vlan(self.community, self.server, portindex, "0", vlan_list=[v for v in vlans if 0 < v <= 1023])
-        self._meta_vlan(self.community, self.server, portindex, "0", vlan_list=[v for v in vlans if 1023 < v <= 2047])
-        self._meta_vlan(self.community, self.server, portindex, "0", vlan_list=[v for v in vlans if 2047 < v <= 3071])
-        self._meta_vlan(self.community, self.server, portindex, "0", vlan_list=[v for v in vlans if 3071 < v <= 4095])
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+        vlans = self._extract_vlan_ids(vlans)
+
+        self._meta_vlan(portindex, "0", vlan_list=[v for v in vlans if 0 < v <= 1023])
+        self._meta_vlan(portindex, "0", vlan_list=[v for v in vlans if 1023 < v <= 2047])
+        self._meta_vlan(portindex, "0", vlan_list=[v for v in vlans if 2047 < v <= 3071])
+        self._meta_vlan(portindex, "0", vlan_list=[v for v in vlans if 3071 < v <= 4095])
 
     def wr_mem(self):
         """
@@ -143,8 +157,9 @@ class CiscoWOSwitch(object):
         snmp_set(self.community, self.server, ('1.3.6.1.4.1.9.9.96.1.1.1.1.3.%i' % key, 4),
                  ('1.3.6.1.4.1.9.9.96.1.1.1.1.4.%i' % key, 3), ('1.3.6.1.4.1.9.9.96.1.1.1.1.14.%i' % key, 4))
 
+    @get_port
     @set_vals('1.3.6.1.2.1.31.1.1.1.18.{portindex}')
-    def set_port_alias(self, portindex, value):
+    def set_port_alias(self, portindex, value, port):
         """
         Sets the alias of a port
 
@@ -153,7 +168,6 @@ class CiscoWOSwitch(object):
         :param value: New port alias
         :type value: str
         """
-        #TODO: Add support for passing a port object.
         return {"portindex": portindex, "value": value}
 
     @set_vals("1.3.6.1.2.1.2.2.1.7.{portindex}")
@@ -169,38 +183,44 @@ class CiscoWOSwitch(object):
         """
         return {"portindex": portindex, "value": value}
 
-    def activate_port(self, portindex):
+    def activate_port(self, portindex=0, port=None):
         """
         Activates the port
 
         :param portindex: Index of the interface/port
         :type portindex: int
         """
-        #TODO: Add support for passing a port object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+
         self._set_port_adminstatus(portindex=portindex, value=1)
 
-    def deactivate_port(self, portindex):
+    def deactivate_port(self, portindex=0, port=None):
         """
         Deactivates the port
 
         :param portindex: Index of the interface/port
         :type portindex: int
         """
-        #TODO: Add support for passing a port object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+
         self._set_port_adminstatus(portindex=portindex, value=2)
 
     @set_vals("1.3.6.1.4.1.9.9.46.1.6.1.1.13.{portindex}")
     def _set_port_trunk(self, items, portindex, value):
         """_set_port_trunk(community, server, portindex, value)
         Sets the trunk status of the port
-        see: http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=vlanTrunkPortDynamicState&translate=Translate
+        see:
+           http://tools.cisco.com/Support/SNMP/do/BrowseOID.do?objectInput=vlanTrunkPortDynamicState&translate=Translate
 
         :param portindex: Index of the interface/port
         :param value: New trunk dynamic state, (1 = on, 2 = off, 3 = desirable, 4 = auto, 5 = onNoNegotiate)
+        :param items: passed by decorator
         """
         return {"portindex": portindex, "value": value}
 
-    def make_port_trunk(self, portindex):
+    def make_port_trunk(self, portindex=0, port=None):
         """
         Makes the port a trunk, equivalent to
            >> switchport mode trunk
@@ -208,10 +228,12 @@ class CiscoWOSwitch(object):
         :param portindex: Index of the interface/port
         :type portindex: int
         """
-        #TODO: Add support for passing a port object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+
         self._set_port_trunk(portindex=portindex, value=1)
 
-    def make_port_access(self, portindex):
+    def make_port_access(self, portindex=0, port=None):
         """
         Makes the port access, equivalent to
           >> switchport mode access
@@ -219,7 +241,9 @@ class CiscoWOSwitch(object):
         :param portindex: Index of the interface/port
         :type portindex: int
         """
-        #TODO: Add support for passing a port object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+
         self._set_port_trunk(portindex=portindex, value=2)
 
     def _start_vlan_transaction(self, vlandomain):
@@ -228,8 +252,6 @@ class CiscoWOSwitch(object):
         raises BlockingIOError if one is in progress.
         raises IOError if the edit table did not get populated
 
-        :param community: SNMP Community
-        :param server: Host (switch)
         :param vlandomain: vlan domain, usually 1
         """
         names = "1.3.6.1.4.1.9.9.46.1.4.2.1.4.{vlandomain}".format(vlandomain=vlandomain)
@@ -280,7 +302,7 @@ class CiscoWOSwitch(object):
         edits = "1.3.6.1.4.1.9.9.46.1.4.1.1.1.{vlandomain}".format(vlandomain=vlandomain)
         snmp_set(self.community, self.server, (edits, 4))
 
-    def create_vlan(self, vlanid, name, vlandomain=1):
+    def create_vlan(self, vlanid=0, name=None, vlandomain=1, vlan=None):
         """
         Creates a new vlan
         Raises ValueError if vlan does already exist
@@ -292,7 +314,9 @@ class CiscoWOSwitch(object):
         :param vlandomain: vlan domain, usually 1
         :type vlandomain: int
         """
-        #TODO: Add support for passing a vlan object.
+        if vlanid == 0 and vlan is not None:
+            vlanid, name = self._get_vlan(vlan)
+
         self._start_vlan_transaction(vlandomain)
         vlanedit = "1.3.6.1.4.1.9.9.46.1.4.2.1.11.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
         vlanname = "1.3.6.1.4.1.9.9.46.1.4.2.1.4.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
@@ -305,7 +329,7 @@ class CiscoWOSwitch(object):
             raise e
         self._commit_vlan_transaction(vlandomain)
 
-    def rename_vlan(self, vlanid, name, vlandomain=1):
+    def rename_vlan(self, vlanid=0, name=None, vlandomain=1, vlan=None):
         """
         Renames a vlan
         Raises KeyError if vlan does not exist
@@ -317,7 +341,8 @@ class CiscoWOSwitch(object):
         :param vlandomain: vlan domain, usually 1
         :type vlandomain: int
         """
-        #TODO: Add support for passing a vlan object.
+        if vlanid == 0 and vlan is not None:
+            vlanid, name = self._get_vlan(vlan)
         self._start_vlan_transaction(vlandomain)
         vlanedit = "1.3.6.1.4.1.9.9.46.1.4.2.1.11.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
         vlanname = "1.3.6.1.4.1.9.9.46.1.4.2.1.4.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
@@ -330,7 +355,7 @@ class CiscoWOSwitch(object):
             raise e
         self._commit_vlan_transaction(vlandomain)
 
-    def set_access_vlan(self, portindex, vlanid):
+    def set_access_vlan(self, portindex=0, vlanid=0, vlan=None, port=None):
         """
         Sets the access vlan on an access port
         raises ValueError if the port is not found in access port table
@@ -341,8 +366,11 @@ class CiscoWOSwitch(object):
         :param portindex: Index of the interface/port
         :type portindex: int
         """
-        #TODO: Add support for passing a port object.
-        #TODO: Add support for passing a vlan object.
+        if portindex == 0 and port is not None:
+            portindex = self._get_port(port)
+        if vlanid == 0 and vlan is not None:
+            vlanid, name = self._get_vlan(vlan)
+
         accessvlan = "1.3.6.1.4.1.9.9.68.1.2.2.1.2.{portindex}".format(portindex=portindex)
         if type(list(snmp_get(self.community, self.server, accessvlan))) == NoSuchInstance:
             raise ValueError("Port does not exist or is not set to mode access")
@@ -350,20 +378,19 @@ class CiscoWOSwitch(object):
         if int(snmp_get(self.community, self.server, accessvlan)[0][1]) == vlanid:
             raise IOError("Could not update access vlan")
 
-    def delete_vlan(self, vlanid, vlandomain=1):
+    def delete_vlan(self, vlanid=0, vlandomain=1, vlan=None):
         """
         Delete a vlan
         Raises KeyError if vlan does not exist
 
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
-        :param name: Name of vlan
-        :type name: basestring
         :param vlandomain: vlan domain, usually 1
         :type vlandomain: int
         """
-        #TODO: Add support for passing a vlan object.
-        #TODO: Add support for passing a vlan object.
+        if vlanid == 0 and vlan is not None:
+            vlanid, name = self._get_vlan(vlan)
+
         self._start_vlan_transaction(vlandomain)
         vlanedit = "1.3.6.1.4.1.9.9.46.1.4.2.1.11.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
         try:

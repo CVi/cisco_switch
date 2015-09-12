@@ -1,3 +1,4 @@
+from cisco_switch.base import SwitchBase
 from .ro import CiscoROSwitch
 from .rw import CiscoWOSwitch
 from cisco_switch.snmp_funcs import fetch_binds, snmp_next, snmp_get, snmp_set, set_vals
@@ -32,7 +33,7 @@ class CiscoSwitch(CiscoROSwitch, CiscoWOSwitch):
         return "<CiscoSwitch: {0}>".format(self.server)
 
 
-class CiscoPort(object):
+class CiscoPort(SwitchBase):
     """
     Cisco port class
 
@@ -87,34 +88,36 @@ class CiscoPort(object):
         """
         return self.switch.get_port_alias(self.portindex)
 
-    def activate_vlan(self, vlanid):
+    def activate_vlan(self, vlanid=0, vlan=None):
         """
         Activates a vlan on the port
 
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        #TODO: Add support for passing a vlan object.
+        if vlanid == 0 and vlan is not None:
+            vlanid, vlanname = self._get_vlan(vlan)
         self.switch.activate_vlan_on_port(self.portindex, vlanid)
 
-    def deactivate_vlan(self, vlanid):
+    def deactivate_vlan(self, vlanid=0, vlan=None):
         """
         Deactivates a vlan on the port
 
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        #TODO: Add support for passing a vlan object.
+        if vlanid == 0 and vlan is not None:
+            vlanid, vlanname = self._get_vlan(vlan)
         self.switch.deactivate_vlan_on_port(self.portindex, vlanid)
 
-    def activate_vlans(self, vlans):
+    def activate_vlans(self, vlans=None):
         """
         Activates a list of vlans on the port
 
         :param vlans: List of VlanID, usually the 802.1q tag number.
         :type vlans: list[int]
         """
-        #TODO: Add support for passing a vlan object.
+        vlans = self._extract_ids(vlans)
         self.switch.activate_vlans_on_port(self.portindex, vlans)
 
     def deactivate_vlans(self, vlans):
@@ -124,7 +127,7 @@ class CiscoPort(object):
         :param vlans: List of VlanID, usually the 802.1q tag number.
         :type vlans: list[int]
         """
-        #TODO: Add support for passing a vlan object.
+        vlans = self._extract_ids(vlans)
         self.switch.deactivate_vlans_on_port(self.portindex, vlans)
 
     def set_alias(self, value):
@@ -171,7 +174,7 @@ class CiscoPort(object):
         """
         self.switch.get_access_vlan(self.portindex)
 
-    def set_access_vlan(self, vlanid):
+    def set_access_vlan(self, vlanid=0, vlan=None):
         """
         Sets the access vlan on an access port
         raises ValueError if the port is not found in access port table
@@ -180,7 +183,8 @@ class CiscoPort(object):
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        #TODO: Add support for passing a vlan object.
+        if vlanid == 0 and vlan is not None:
+            vlanid, vlanname = self._get_vlan(vlan)
         self.switch.set_access_vlan(self.portindex, vlanid)
 
 

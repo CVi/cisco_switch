@@ -6,6 +6,8 @@
 
 Be aware, decorators are signature altering.
 """
+from cisco_switch.base import SwitchBase, get_port, get_vlan
+
 __author__ = 'CVi'
 
 from cisco_switch.snmp_funcs import fetch_binds, snmp_next
@@ -14,7 +16,7 @@ from pysnmp.proto.rfc1905 import NoSuchInstance
 __all__ = ['CiscoROSwitch']
 
 
-class CiscoROSwitch(object):
+class CiscoROSwitch(SwitchBase):
     """
     Read only switch class
     """
@@ -28,9 +30,10 @@ class CiscoROSwitch(object):
         self.community = community
         self.server = server
 
+    @get_port
     @fetch_binds('1.3.6.1.2.1.2.2.1.7.{portindex}', '1.3.6.1.4.1.9.9.46.1.6.1.1.16.{portindex}',
                  '1.3.6.1.4.1.9.9.46.1.6.1.1.14.{portindex}')
-    def trunk_status(self, binds, portindex):
+    def trunk_status(self, binds, portindex, port):
         """
         Status of a trunk port
 
@@ -39,7 +42,6 @@ class CiscoROSwitch(object):
         :return: True if the port is active and trunk, False otherwise.
         :rtype: boolean
         """
-        #TODO: Add support for passing a port object.
         for name, val in binds:
             nm_str = name.prettyPrint()
             if '1.3.6.1.2.1.2.2.1.7' in nm_str:
@@ -50,8 +52,9 @@ class CiscoROSwitch(object):
                 is_trunk = val
         return admin == 1 and is_trunk == 1 and trunk != 6
 
+    @get_port
     @fetch_binds('1.3.6.1.2.1.2.2.1.7.{portindex}')
-    def admin_status(self, binds, portindex):
+    def admin_status(self, binds, portindex, port):
         """
         Retrieves the admin status of a port.
 
@@ -60,7 +63,6 @@ class CiscoROSwitch(object):
         :return: True if port is administratively up, False otherwsie.
         :rtype: boolean
         """
-        #TODO: Add support for passing a port object.
         return binds[0][1] == 1
 
     def port_names(self):
@@ -73,9 +75,10 @@ class CiscoROSwitch(object):
         pf = "1.3.6.1.2.1.31.1.1.1.1"
         return {str(val): int(name.prettyPrint()[len(pf)+1:]) for name, val in snmp_next(self.community, self.server, pf)}
 
+    @get_port
     @fetch_binds('1.3.6.1.4.1.9.9.46.1.6.1.1.4.{portindex}', '1.3.6.1.4.1.9.9.46.1.6.1.1.17.{portindex}',
                  '1.3.6.1.4.1.9.9.46.1.6.1.1.18.{portindex}', '1.3.6.1.4.1.9.9.46.1.6.1.1.19.{portindex}')
-    def vlans_on_port(self, binds, portindex):
+    def vlans_on_port(self, binds, portindex, port):
         """Get all the vlans on a vlan trunk port.
 
         :param portindex: Index of the interface/port
@@ -83,7 +86,6 @@ class CiscoROSwitch(object):
         :return: List of all vlanids on a port (if in trunk mode)
         :rtype: list[int]
         """
-        #TODO: Add support for passing a port object.
         vlans = []
         pf = "1.3.6.1.4.1.9.9.46.1.6.1.1"
         mappings = {'4.': 0, '17': 1024, '18': 2048, '19': 3072}
@@ -112,13 +114,13 @@ class CiscoROSwitch(object):
         :return: Dictionary, vlanid as key, name as value.
         :rtype: dictionary
         """
-        #TODO: Add support for passing a vlan object.
         pf = "1.3.6.1.4.1.9.9.46.1.3.1.1.4.{vlandomain}".format(vlandomain=vlandomain)
         cleaned = map(lambda x: (x[0].prettyPrint(), x[1]), snmp_next(self.community, self.server, pf))
         return {int(name[name.rfind('.')+1:]): str(val) for name, val in cleaned}
 
+    @get_port
     @fetch_binds("1.3.6.1.2.1.31.1.1.1.18.{portindex}")
-    def get_port_alias(self, binds, portindex):
+    def get_port_alias(self, binds, portindex, port):
         """
         Get the alias of a port
 
@@ -127,11 +129,11 @@ class CiscoROSwitch(object):
         :return: Port Alias
         :rtype: basestring
         """
-        #TODO: Add support for passing a port object.
         return str(binds[0][1]) or None
 
+    @get_vlan
     @fetch_binds("1.3.6.1.4.1.9.9.46.1.3.1.1.4.{vlandomain}.{vlanid}")
-    def get_vlan_name(self, binds, vlanid, vlandomain=1):
+    def get_vlan_name(self, binds, vlanid, vlandomain, vlan_name=None, vlan=None):
         """
         Get the name of a vlan
 
@@ -142,7 +144,6 @@ class CiscoROSwitch(object):
         :return: The name of the vlan
         :rtype: basestring
         """
-        #TODO: Add support for passing a vlan object.
         return str(binds[0][1])
 
     @fetch_binds('1.3.6.1.4.1.9.9.68.1.2.2.1.2.{portindex}')

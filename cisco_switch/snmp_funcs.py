@@ -1,3 +1,11 @@
+"""
+.. module:: snmp_funcs
+   :synopsis: Misc SNMP background
+
+.. moduleauthor:: Christoffer Viken <christoffer@viken.me>
+
+This module is seriously messy, anyone is welcome to try to clean it up.
+"""
 __author__ = 'CVi'
 
 from pysnmp.entity.rfc3413.oneliner import cmdgen
