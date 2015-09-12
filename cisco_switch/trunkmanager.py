@@ -66,6 +66,7 @@ class Port(object):
         self.remote_id = remote_id
         self.others_list = args
         self.others_dict = kwargs
+        self.hosts = {}
 
 
 class TrunkManager(object):
@@ -163,7 +164,58 @@ class TrunkManager(object):
         :type snmp_port: CiscoPort
         :return:
         """
+        return True
+
+    def test_edit_vlans_on_port(self, switch, port, snmp_switch, snmp_port):
+        """
+        Returns True if it's OK to edit vlans on that port,
+        Can be overridden to change criterion.
+
+        :param switch: Host object (assumed to be a switch)
+        :type switch: Switch
+        :param port: Port object
+        :type port: Port
+        :param snmp_switch: Snmp proxy for switch
+        :type snmp_switch: CiscoSwitch
+        :param snmp_port: Snmp proxy for port
+        :type snmp_port: CiscoPort
+        :return:
+        """
         return snmp_port.trunk_status()
+
+    def test_edit_port_name(self, switch, port, snmp_switch, snmp_port):
+        """
+        Returns True if it's OK to edit name of that port,
+        Can be overridden to change criterion.
+
+        :param switch: Host object (assumed to be a switch)
+        :type switch: Switch
+        :param port: Port object
+        :type port: Port
+        :param snmp_switch: Snmp proxy for switch
+        :type snmp_switch: CiscoSwitch
+        :param snmp_port: Snmp proxy for port
+        :type snmp_port: CiscoPort
+        :return:
+        """
+        return False
+
+    def get_new_port_name(self, switch, port, snmp_switch, snmp_port):
+        """
+        Returns the name (description) to give the port
+        Can be overridden to change algorithm.
+
+        :param switch: Host object (assumed to be a switch)
+        :type switch: Switch
+        :param port: Port object
+        :type port: Port
+        :param snmp_switch: Snmp proxy for switch
+        :type snmp_switch: CiscoSwitch
+        :param snmp_port: Snmp proxy for port
+        :type snmp_port: CiscoPort
+        :return:
+        """
+        return port.name
 
     def remap_port_name(self, name):
         """
@@ -211,13 +263,15 @@ class TrunkManager(object):
                              .format(id=snmp_vlan.id, oname=oldname, nname=vlan.name, swname=host.name))
                 if not self.simulate:
                     snmp_vlan.rename(vlan.name)
+                    return True
         elif self.test_remove_vlan_switch(host, vlan, snmp_vlan):
             logging.info("Deleting Vlan {id} from {swname}"
                          .format(id=snmp_vlan.id, swname=host.name))
             if not self.simulate:
                 snmp_switch.delete_vlan(snmp_vlan.id)
+                return True
 
-    def _handle_port(self, host, snmp_switch, snmp_port, port):
+    def _handle_port_vlans(self, host, snmp_switch, snmp_port, port):
         """
         Handle a trunk port. Add/remove vlans as necessary.
 
@@ -240,12 +294,14 @@ class TrunkManager(object):
         vlans_redundant = vlans_current - vlans_link
 
         activate = []
+        ud = False
         for vl in vlans_missing:
             logging.info("Adding vlan {id} to trunk {pname} on {swname}"
                          .format(id=vl, pname=port.name, swname=host.name))
             activate.append(vl)
         if not self.simulate and len(activate) > 0:
             snmp_port.activate_vlans(activate)
+            ud = True
 
         remove = []
         for vl in vlans_redundant:
@@ -253,8 +309,11 @@ class TrunkManager(object):
                 logging.info("Removing vlan {id} from trunk {pname} on {swname}"
                              .format(id=vl, pname=port.name, swname=host.name))
                 remove.append(vl)
+                ud = True
         if not self.simulate and len(remove) > 0:
             snmp_port.deactivate_vlans(remove)
+            ud = True
+        return ud
 
     def _handle_host(self, host):
         """
@@ -266,8 +325,9 @@ class TrunkManager(object):
         snmp_switch = CiscoSwitch(self.get_community(host), host.fqdn)
         snmp_vlans = snmp_switch.get_vlans()
         present_vlans = []
+        ud = False
         for snmp_vlan in snmp_vlans:
-            self._handle_snmp_vlan(host, snmp_switch, snmp_vlan, present_vlans)
+            ud = self._handle_snmp_vlan(host, snmp_switch, snmp_vlan, present_vlans) or ud
         for vlan_id in self.vlan_map[host.id]:
             if vlan_id not in present_vlans:
                 vlan = self.vlans[vlan_id]
@@ -275,15 +335,27 @@ class TrunkManager(object):
                              .format(id=vlan_id, vlname=vlan.name, swname=host.name))
                 if not self.simulate:
                     snmp_switch.create_vlan(vlan.id, vlan.name)
+                    ud = True
 
         ports = {self.remap_port_name(p.name): p for p in host.get_outgoing_links()}
         for snmp_port in snmp_switch.get_ports():
             if snmp_port.name in ports \
                     and ports[snmp_port.name].remote_id in self.vlan_map \
                     and self.test_edit_stuff_on_port(host, ports[snmp_port.name], snmp_switch, snmp_port):
-                self._handle_port(host, snmp_switch, snmp_port, ports[snmp_port.name])
+                if self.test_edit_vlans_on_port(host, ports[snmp_port.name], snmp_switch, snmp_port):
+                    ud = self._handle_port_vlans(host, snmp_switch, snmp_port, ports[snmp_port.name]) or ud
+                if self.test_edit_port_name(host, ports[snmp_port.name], snmp_switch, snmp_port):
+                    odesc = snmp_port.get_alias()
+                    ndesc = self.get_new_port_name(host, ports[snmp_port.name], snmp_switch, snmp_port)
+                    if odesc != ndesc:
+                        logging.info("Renaming port {paname} form {odesc} to {ndesc}"
+                                     .format(pname=snmp_port.name, odesc=odesc, ndesc=ndesc))
+                        if not self.simulate:
+                            snmp_port.set_alias(ndesc)
+                            ud = True
 
-        # TODO: Check for changes and apply write-memory
+        if ud and not self.simulate:
+            snmp_switch.wr_mem()
 
     def apply(self):
         """

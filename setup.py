@@ -6,12 +6,13 @@ import sys
 if sys.version_info < (3, 0):
     raise Exception("cisco_switch requires Python 3.0 or higher.")
 
+
 def readme():
     with open('README.rst') as f:
         return f.read()
 
 setup(name='cisco_switch',
-      version='0.1.1',
+      version='0.1.2',
       description='Manage a Cisco switch trough SNMP',
       long_description=readme(),
       url='http://github.com/chrivi/cisco_switch',

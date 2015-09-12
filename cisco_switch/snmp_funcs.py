@@ -21,6 +21,7 @@ msgAndPduDsp = MsgAndPduDispatcher(mibInstrumController=mibInstrumController)
 eg = engine.SnmpEngine(msgAndPduDsp=msgAndPduDsp)
 cmdGen = cmdgen.CommandGenerator(snmpEngine=eg)
 
+
 def snmp_get(community, server, *items):
     errorIndication, errorStatus, errorIndex, varBinds = cmdGen.getCmd(
         cmdgen.CommunityData(community),
@@ -73,10 +74,10 @@ def snmp_next(community, server, item, max_rows=0):
 def fetch_binds(*items):
     def fetch_binds_decorator(func):
         @wraps(func)
-        def func_wrapper(community, server, **kwargs):
-            binds = snmp_get(community, server, *map(lambda item: item.format(**kwargs), items))
+        def func_wrapper(self, **kwargs):
+            binds = snmp_get(self.community, self.server, *map(lambda item: item.format(**kwargs), items))
             kwargs['binds'] = binds
-            return func(community, server, **kwargs)
+            return func(self, self.community, self.server, **kwargs)
 
         return func_wrapper
     return fetch_binds_decorator
@@ -85,10 +86,10 @@ def fetch_binds(*items):
 def set_vals(*items):
     def fetch_binds_decorator(func):
         @wraps(func)
-        def func_wrapper(community, server, **kwargs):
-            values = func(community=community, server=server, items=items, **kwargs)
-            snmp_set(community, server, *map(lambda item, value: (item.format(**kwargs), value), items, values))
+        def func_wrapper(self, **kwargs):
+            values = func(self, items=items, **kwargs)
+            kwargs.update(values)
+            snmp_set(self.community, self.server, *map(lambda item, value: (item.format(**kwargs), value), items, values))
 
         return func_wrapper
     return fetch_binds_decorator
-

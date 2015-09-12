@@ -11,4 +11,4 @@ Main Features
 * Manages access-vlan
 * Manages trunk/access
 * Manages vlans
-* Object oriented or function interface
+* Object oriented interface
