@@ -7,12 +7,10 @@
 Be aware, decorators are signature altering.
 """
 from cisco_switch.base import SwitchBase, get_port, get_vlan
-
-__author__ = 'CVi'
-
 from cisco_switch.snmp_funcs import fetch_binds, snmp_next
 from pysnmp.proto.rfc1905 import NoSuchInstance
 
+__author__ = 'CVi'
 __all__ = ['CiscoROSwitch']
 
 
@@ -42,6 +40,9 @@ class CiscoROSwitch(SwitchBase):
         :return: True if the port is active and trunk, False otherwise.
         :rtype: boolean
         """
+        admin = 0
+        is_trunk = 0
+        trunk = 0
         for name, val in binds:
             nm_str = name.prettyPrint()
             if '1.3.6.1.2.1.2.2.1.7' in nm_str:

@@ -60,7 +60,7 @@ class CiscoPort(SwitchBase):
         :return: True if the port is active and trunk, False otherwise.
         :rtype: boolean
         """
-        return self.switch.trunk_status(self.portindex)
+        return self.switch.trunk_status(port=self)
 
     def admin_status(self):
         """
@@ -69,7 +69,7 @@ class CiscoPort(SwitchBase):
         :return: True if port is administratively up, False otherwsie.
         :rtype: boolean
         """
-        return self.switch.admin_status(self.portindex)
+        return self.switch.admin_status(port=self)
 
     def vlans(self):
         """Get all the vlans on the trunk
@@ -77,7 +77,7 @@ class CiscoPort(SwitchBase):
         :return: List of all vlanids on a port (if in trunk mode)
         :rtype: list[int]
         """
-        return self.switch.vlans_on_port(self.portindex)
+        return self.switch.vlans_on_port(port=self)
 
     def get_alias(self):
         """
@@ -86,7 +86,7 @@ class CiscoPort(SwitchBase):
         :return: Port Alias
         :rtype: basestring
         """
-        return self.switch.get_port_alias(self.portindex)
+        return self.switch.get_port_alias(port=self)
 
     def activate_vlan(self, vlanid=0, vlan=None):
         """
@@ -95,9 +95,7 @@ class CiscoPort(SwitchBase):
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        if vlanid == 0 and vlan is not None:
-            vlanid, vlanname = self._get_vlan(vlan)
-        self.switch.activate_vlan_on_port(self.portindex, vlanid)
+        self.switch.activate_vlan_on_port(port=self, vlanid=vlanid, vlan=vlan)
 
     def deactivate_vlan(self, vlanid=0, vlan=None):
         """
@@ -106,9 +104,7 @@ class CiscoPort(SwitchBase):
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        if vlanid == 0 and vlan is not None:
-            vlanid, vlanname = self._get_vlan(vlan)
-        self.switch.deactivate_vlan_on_port(self.portindex, vlanid)
+        self.switch.deactivate_vlan_on_port(port=self, vlanid=vlanid, vlan=vlan)
 
     def activate_vlans(self, vlans=None):
         """
@@ -117,8 +113,7 @@ class CiscoPort(SwitchBase):
         :param vlans: List of VlanID, usually the 802.1q tag number.
         :type vlans: list[int]
         """
-        vlans = self._extract_ids(vlans)
-        self.switch.activate_vlans_on_port(self.portindex, vlans)
+        self.switch.activate_vlans_on_port(port=self, vlans=vlans)
 
     def deactivate_vlans(self, vlans):
         """
@@ -127,8 +122,7 @@ class CiscoPort(SwitchBase):
         :param vlans: List of VlanID, usually the 802.1q tag number.
         :type vlans: list[int]
         """
-        vlans = self._extract_ids(vlans)
-        self.switch.deactivate_vlans_on_port(self.portindex, vlans)
+        self.switch.deactivate_vlans_on_port(port=self, vlans=vlans)
 
     def set_alias(self, value):
         """
@@ -137,33 +131,33 @@ class CiscoPort(SwitchBase):
         :param value: New port alias
         :type value: basestring
         """
-        self.switch.set_port_alias(self.portindex, value)
+        self.switch.set_port_alias(port=self, value=value)
 
     def activate(self):
         """
         Activates the port
         """
-        self.switch.activate_port(self.portindex)
+        self.switch.activate_port(port=self)
 
     def deactivate(self):
         """
         Deactivates the port
         """
-        self.switch.deactivate_port(self.portindex)
+        self.switch.deactivate_port(port=self)
 
     def make_trunk(self):
         """
         Makes the port a trunk, equivalent to
            >> switchport mode trunk
         """
-        self.switch.make_port_trunk(self.portindex)
+        self.switch.make_port_trunk(port=self)
 
     def make_access(self):
         """
         Makes the port access, equivalent to
           >> switchport mode access
         """
-        self.switch.make_port_access(self.portindex)
+        self.switch.make_port_access(port=self)
 
     def get_access_vlan(self):
         """get_access_vlan(community, server, portindex)
@@ -172,7 +166,7 @@ class CiscoPort(SwitchBase):
         :return: The access vlan on the port
         :rtype: int
         """
-        self.switch.get_access_vlan(self.portindex)
+        self.switch.get_access_vlan(port=self)
 
     def set_access_vlan(self, vlanid=0, vlan=None):
         """
@@ -183,9 +177,7 @@ class CiscoPort(SwitchBase):
         :param vlanid: VlanID, usually the 802.1q tag number.
         :type vlanid: int
         """
-        if vlanid == 0 and vlan is not None:
-            vlanid, vlanname = self._get_vlan(vlan)
-        self.switch.set_access_vlan(self.portindex, vlanid)
+        self.switch.set_access_vlan(port=self, vlanid=vlanid, vlan=vlan)
 
 
 class CiscoVlan(object):
@@ -233,7 +225,7 @@ class CiscoVlan(object):
         :return: Name of the vlan
         :rtype :  basestring
         """
-        return self.switch.get_vlan_name(self.id, vlandomain=self.vlandomain)
+        return self.switch.get_vlan_name(vlan=self, vlandomain=self.vlandomain)
 
     def rename(self, name):
         """
@@ -243,4 +235,4 @@ class CiscoVlan(object):
         :param name: New name of vlan
         :type name: basestring
         """
-        self.switch.rename_vlan(self.id, name, vlandomain=self.vlandomain)
+        self.switch.rename_vlan(vlan=self, vlan_name=name, vlandomain=self.vlandomain)
