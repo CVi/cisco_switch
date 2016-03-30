@@ -66,6 +66,32 @@ class CiscoROSwitch(SwitchBase):
         """
         return binds[0][1] == 1
 
+    @get_port
+    @fetch_binds('1.3.6.1.2.1.2.2.1.10.{portindex}')
+    def octets_in(self, binds, portindex, port):
+        """
+        Retrieves number of octets that has come in on the port.
+
+        :param portindex: Index of the port
+        :type portindex: int
+        :return: Octet (byte) count
+        :rtype: int
+        """
+        return int(binds[0][1])
+
+    @get_port
+    @fetch_binds('1.3.6.1.2.1.2.2.1.16.{portindex}')
+    def octets_out(self, binds, portindex, port):
+        """
+        Retrieves number of octets that has come out on the port.
+
+        :param portindex: Index of the port
+        :type portindex: int
+        :return: Octet (byte) count
+        :rtype: int
+        """
+        return int(binds[0][1])
+
     def port_names(self):
         """
         Gets all the ports and port IDs on a switch
@@ -75,6 +101,16 @@ class CiscoROSwitch(SwitchBase):
         """
         pf = "1.3.6.1.2.1.31.1.1.1.1"
         return {str(val): int(name.prettyPrint()[len(pf)+1:]) for name, val in snmp_next(self.community, self.server, pf)}
+
+    def port_names_regular(self):
+        """
+        Gets all the ports and port IDs on a switch (without using ifXTable)
+
+        :return: Dictionary, port name as key and index as value.
+        :rtype: dictionary
+        """
+        pf = "1.3.6.1.2.1.2.2.1.2"
+        return {str(val): int(str(name.getOid())[len(pf)+1:]) for name, val in snmp_next(self.community, self.server, pf)}
 
     @get_port
     @fetch_binds('1.3.6.1.4.1.9.9.46.1.6.1.1.4.{portindex}', '1.3.6.1.4.1.9.9.46.1.6.1.1.17.{portindex}',

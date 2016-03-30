@@ -109,7 +109,7 @@ class CiscoWOSwitch(SwitchBase):
         if portindex == 0 and port is not None:
             portindex = self._get_port(port)
         if vlanid == 0 and vlan is not None:
-            vlanid, vlanname = self._get_vlan(vlan)
+            vlanid = self._get_vlan(vlan)
 
         self._meta_vlan(portindex=portindex, vlanid=vlanid, status="0")
 
@@ -154,8 +154,36 @@ class CiscoWOSwitch(SwitchBase):
         Saves the configuration to flash/disk.
         """
         key = random.randint(1, 255)
-        snmp_set(self.community, self.server, ('1.3.6.1.4.1.9.9.96.1.1.1.1.3.%i' % key, 4),
-                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.4.%i' % key, 3), ('1.3.6.1.4.1.9.9.96.1.1.1.1.14.%i' % key, 4))
+        snmp_set(self.community, self.server,
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.3.%i' % key, 4),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.4.%i' % key, 3),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.14.%i' % key, 4))
+
+    def tftp_export(self, tftpserver, filename):
+        """
+        Copies running config to a tftp server.
+        """
+        key = random.randint(1, 255)
+        snmp_set(self.community, self.server,
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.2.%i' % key, 1),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.3.%i' % key, 4),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.4.%i' % key, 1),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.5.%i' % key, tftpserver),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.6.%i' % key, filename),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.14.%i' % key, 4))
+
+    def tftp_import(self, tftpserver, filename):
+        """
+        Copies running config to a tftp server.
+        """
+        key = random.randint(1, 255)
+        snmp_set(self.community, self.server,
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.2.%i' % key, 1),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.3.%i' % key, 1),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.4.%i' % key, 4),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.5.%i' % key, tftpserver),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.6.%i' % key, filename),
+                 ('1.3.6.1.4.1.9.9.96.1.1.1.1.14.%i' % key, 4))
 
     @get_port
     @set_vals('1.3.6.1.2.1.31.1.1.1.18.{portindex}')
@@ -302,7 +330,7 @@ class CiscoWOSwitch(SwitchBase):
         edits = "1.3.6.1.4.1.9.9.46.1.4.1.1.1.{vlandomain}".format(vlandomain=vlandomain)
         snmp_set(self.community, self.server, (edits, 4))
 
-    def create_vlan(self, vlanid=0, name=None, vlandomain=1, vlan=None):
+    def create_vlan(self, vlanid, name, vlandomain=1):
         """
         Creates a new vlan
         Raises ValueError if vlan does already exist
@@ -314,9 +342,6 @@ class CiscoWOSwitch(SwitchBase):
         :param vlandomain: vlan domain, usually 1
         :type vlandomain: int
         """
-        if vlanid == 0 and vlan is not None:
-            vlanid, name = self._get_vlan(vlan)
-
         self._start_vlan_transaction(vlandomain)
         vlanedit = "1.3.6.1.4.1.9.9.46.1.4.2.1.11.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
         vlanname = "1.3.6.1.4.1.9.9.46.1.4.2.1.4.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
@@ -342,7 +367,7 @@ class CiscoWOSwitch(SwitchBase):
         :type vlandomain: int
         """
         if vlanid == 0 and vlan is not None:
-            vlanid, name = self._get_vlan(vlan)
+            vlanid, oldname = self._get_vlan_name(vlan)
         self._start_vlan_transaction(vlandomain)
         vlanedit = "1.3.6.1.4.1.9.9.46.1.4.2.1.11.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
         vlanname = "1.3.6.1.4.1.9.9.46.1.4.2.1.4.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)
@@ -369,7 +394,7 @@ class CiscoWOSwitch(SwitchBase):
         if portindex == 0 and port is not None:
             portindex = self._get_port(port)
         if vlanid == 0 and vlan is not None:
-            vlanid, name = self._get_vlan(vlan)
+            vlanid = self._get_vlan(vlan)
 
         accessvlan = "1.3.6.1.4.1.9.9.68.1.2.2.1.2.{portindex}".format(portindex=portindex)
         if type(list(snmp_get(self.community, self.server, accessvlan))) == NoSuchInstance:
@@ -389,7 +414,7 @@ class CiscoWOSwitch(SwitchBase):
         :type vlandomain: int
         """
         if vlanid == 0 and vlan is not None:
-            vlanid, name = self._get_vlan(vlan)
+            vlanid = self._get_vlan(vlan)
 
         self._start_vlan_transaction(vlandomain)
         vlanedit = "1.3.6.1.4.1.9.9.46.1.4.2.1.11.{vlandomain}.{vlanid}".format(vlandomain=vlandomain, vlanid=vlanid)

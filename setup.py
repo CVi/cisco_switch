@@ -12,7 +12,7 @@ def readme():
         return f.read()
 
 setup(name='cisco_switch',
-      version='0.1.3',
+      version='0.1.4',
       description='Manage a Cisco switch trough SNMP',
       long_description=readme(),
       url='http://github.com/chrivi/cisco_switch',

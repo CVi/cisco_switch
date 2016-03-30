@@ -21,7 +21,7 @@ __all__ = ['snmp_get', 'snmp_set', 'snmp_next', 'fetch_binds', 'set_vals', 'mibB
 # Some background, mibs etc.
 mibBuilder = builder.MibBuilder()
 mibBuilder.setMibPath(os.path.dirname(os.path.realpath(__file__))+'/mibs', *mibBuilder.getMibPath())
-mibBuilder.loadModules('SNMPv2-MIB', 'IF-MIB', 'CISCO-VTP-MIB', 'CISCO-CONFIG-COPY-MIB', 'CISCO-VLAN-MEMBERSHIP-MIB')
+mibBuilder.loadModules('SNMPv2-MIB', 'IF-MIB' 'CISCO-VTP-MIB', 'CISCO-CONFIG-COPY-MIB', 'CISCO-VLAN-MEMBERSHIP-MIB')
 
 # The engine; I don't know how it works anymore, but it works.
 mibInstrumController = instrum.MibInstrumController(mibBuilder)
@@ -85,7 +85,7 @@ def fetch_binds(*items):
         def func_wrapper(self, **kwargs):
             binds = snmp_get(self.community, self.server, *map(lambda item: item.format(**kwargs), items))
             kwargs['binds'] = binds
-            return func(self, self.community, self.server, **kwargs)
+            return func(self, **kwargs)
 
         return func_wrapper
     return fetch_binds_decorator
